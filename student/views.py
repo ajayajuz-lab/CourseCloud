@@ -1,29 +1,18 @@
 from django.shortcuts import render,redirect
-from django.views.generic import View
+from django.views.generic import View,FormView,CreateView,TemplateView
 from student.forms import StudentCreateForm,StudentSigninForm
 from django.contrib.auth import authenticate,login
+from django.urls import reverse_lazy
 
-# Create your views here.
-class StudentCreateView(View):
-    def get(self,request,*args,**kwargs):
-        form_instance = StudentCreateForm()
-        return render(request,"register.html",{"form":form_instance})
 
-    def post(self,request,*args,**kwargs):
-        form_data=request.POST
-        form_instance=StudentCreateForm(form_data)
-        
-        if form_instance.is_valid():
-            form_instance.save()
-            return redirect("student-create")
-        
-        else:
-            return render(request,"register.html",{"form":form_instance})
+class StudentCreateView(CreateView):
+    template_name="register.html"
+    form_class=StudentCreateForm
+    success_url=reverse_lazy("signin")
 
-class StudentSigninView(View):
-    def get(self,request,*args,**kwargs):
-        form_instance = StudentSigninForm()
-        return render(request,"signin.html",{"form":form_instance})
+class LoginView(FormView):
+    template_name="signin.html"
+    form_class=StudentSigninForm
 
     def post(self,request,*args,**kwargs):
         form_data = request.POST 
@@ -36,11 +25,17 @@ class StudentSigninView(View):
             
             user_instance=authenticate(request,username=uname,password=pwd)
 
-            if user_instance and user_instance.role=="student":
+            if user_instance :
                 print(user_instance.role)
                 login(request,user_instance)
                 print(f"sign in success {request.user}")
-                return redirect("student-create")
+                return redirect("index")
+            else:
+                return render(request,"signin.html",{"form":form_instance})
+                
         
         else:
             return render(request,"signin.html",{"form":form_instance})
+
+class IndexView(TemplateView):
+    template_name="index.html"
