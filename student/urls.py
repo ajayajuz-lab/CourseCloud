@@ -5,4 +5,5 @@ urlpatterns=[
     path('register/',views.StudentCreateView.as_view(),name="student-register"),
     path('signin/',views.LoginView.as_view(),name="signin"),
     path('index/',views.IndexView.as_view(),name="index"),
+    path('courses/detail/<int:pk>/',views.CourseDetailView.as_view(),name="course-detail"),
 ]
