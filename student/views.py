@@ -3,8 +3,9 @@ from django.views.generic import View,FormView,CreateView,TemplateView
 from student.forms import StudentCreateForm,StudentSigninForm
 from django.contrib.auth import authenticate,login
 from django.urls import reverse_lazy
-from instructor.models import Course
-
+from django.contrib import messages
+from instructor.models import Course,Cart
+from django.db.models import Sum
 
 class StudentCreateView(CreateView):
     template_name="register.html"
@@ -48,3 +49,30 @@ class CourseDetailView(View):
         id=kwargs.get("pk")
         course_instance=Course.objects.get(id=id)
         return render(request,"course_detail.html",{"course":course_instance})
+
+class AddToCartView(View):
+    def get(self,request,*args,**kwargs):
+        id=kwargs.get("pk")
+        course_instance=Course.objects.get(id=id)
+        user_instance=request.user
+        # Cart.objects.create(course_object=course_instance,user=user_instance)
+        cart_instance,created=Cart.objects.get_or_create(course_object=course_instance,user=user_instance)
+        if created:
+            messages.success(request,"Successfully added to the cart")
+            print(created,"======")
+        else:
+            messages.error(request,"Can't add.Item existing in cart")
+        return redirect("index")
+
+class CartSummaryView(View):
+    def get(self,request,*args,**kwargs):
+        qs=request.user.basket.all()
+        cart_total=qs.values("course_object__price").aggregate(total=Sum("course_object__price")).get("total")
+        print(cart_total,"**********************************")
+        return render(request,"cart-summary.html",{"carts":qs,"basket_total":cart_total})
+
+class CartItemDeleteView(View):
+    def get(self,request,*args,**kwargs):
+        id=kwargs.get("pk")
+        Cart.objects.get(id=id).delete()
+        return redirect("cart-summary")

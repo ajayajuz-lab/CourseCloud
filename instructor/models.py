@@ -38,23 +38,14 @@ class Category(models.Model):
 class Course(models.Model):
 
     title=models.CharField(max_length=200)
-
     description=models.TextField()
-
     price=models.DecimalField(decimal_places=2,max_digits=7)
-
     owner=models.ForeignKey(User,on_delete=models.SET_NULL,related_name="courses",null=True)
-
     is_free=models.BooleanField(default=False)
-
     picture=models.ImageField(upload_to="courseimages",null=True,blank=True,default="courseimages/default.png")
-
     thumbnail=EmbedVideoField()
-
     category_objects=models.ManyToManyField(Category)
-    
     created_at=models.DateTimeField(auto_now_add=True)
-
     updated_at=models.DateTimeField(auto_now=True)
 
     def __str__(self):
@@ -78,18 +69,30 @@ class Module(models.Model):
 class Lesson(models.Model):
 
     title=models.CharField(max_length=200)
-
     module_object=models.ForeignKey(Module,on_delete=models.CASCADE,related_name="lessons")
-
     video=EmbedVideoField(null=True)
-
     order=models.PositiveIntegerField()
 
     def __str__(self):
-        
         return f"{self.module_object.title} - {self.title}"
 
     def save(self,*args,**kwargs):
         max_order=Lesson.objects.filter(module_object=self.module_object).aggregate(max=Max("order")).get("max") or 0
         self.order=max_order+1
         super().save(*args,**kwargs)
+
+class Cart(models.Model):
+    course_object=models.ForeignKey(Course,on_delete=models.CASCADE)
+    user=models.ForeignKey(User,on_delete=models.CASCADE,related_name="basket")
+    created_date=models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return self.course_object.title
+
+class Order(models.Model):
+    course_objects=models.ManyToManyField(Course,related_name="enrolment")
+    student=models.ForeignKey(User,on_delete=models.CASCADE,related_name="purchase")
+    is_paid=models.BooleanField(default=False)
+    rzp_order_id=models.CharField(max_length=100,null=True)
+    created_date=models.DateTimeField(auto_now_add=True)
+    total=models.DecimalField(max_digits=10,decimal_places=2)
