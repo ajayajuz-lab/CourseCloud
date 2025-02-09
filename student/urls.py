@@ -9,4 +9,6 @@ urlpatterns=[
     path('courses/<int:pk>/add-to-cart/',views.AddToCartView.as_view(),name="add-to-cart"),
     path('cart/summary/',views.CartSummaryView.as_view(),name="cart-summary"),
     path('cart/<int:pk>/remove/',views.CartItemDeleteView.as_view(),name="cart-item-remove"),
+    path('checkout/',views.OrderCheckoutView.as_view(),name="checkout"),
+    path('purchased/',views.MycoursesView.as_view(),name="purchased-courses"),
 ]

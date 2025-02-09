@@ -4,7 +4,7 @@ from student.forms import StudentCreateForm,StudentSigninForm
 from django.contrib.auth import authenticate,login
 from django.urls import reverse_lazy
 from django.contrib import messages
-from instructor.models import Course,Cart
+from instructor.models import Course,Cart,Order
 from django.db.models import Sum
 
 class StudentCreateView(CreateView):
@@ -76,3 +76,22 @@ class CartItemDeleteView(View):
         id=kwargs.get("pk")
         Cart.objects.get(id=id).delete()
         return redirect("cart-summary")
+
+class OrderCheckoutView(View):
+    def get(self,request,*args,**kwargs):
+        cart_items=request.user.basket.all()
+        order_total=sum([ci.course_object.price for ci in cart_items])
+        order_instance=Order.objects.create(student=request.user,total=order_total)
+
+        for ci in cart_items:
+            order_instance.course_objects.add(ci.course_object)
+            ci.delete()
+        # order_instance.save()
+
+        return redirect("index")
+
+class MycoursesView(View):
+    def get(self,request,*args,**kwargs):
+        purchased_courses=request.user.purchase.all()
+        print(purchased_courses)
+        return render(request,"mycourses.html",{"orders":purchased_courses})

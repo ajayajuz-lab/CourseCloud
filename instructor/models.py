@@ -95,4 +95,6 @@ class Order(models.Model):
     is_paid=models.BooleanField(default=False)
     rzp_order_id=models.CharField(max_length=100,null=True)
     created_date=models.DateTimeField(auto_now_add=True)
-    total=models.DecimalField(max_digits=10,decimal_places=2)
+    total=models.DecimalField(max_digits=10,decimal_places=2,default=0)
+
+

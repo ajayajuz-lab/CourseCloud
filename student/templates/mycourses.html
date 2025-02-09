@@ -1,0 +1,7 @@
+{%extends 'base.html'%}
+
+{%block main_block%}
+{%for item in orders%}
+<p>Course Name:{{item.enrolment.title}}</p>
+{%endfor%}
+{%endblock%}
