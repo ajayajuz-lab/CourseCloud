@@ -4,7 +4,7 @@ from student.forms import StudentCreateForm,StudentSigninForm
 from django.contrib.auth import authenticate,login
 from django.urls import reverse_lazy
 from django.contrib import messages
-from instructor.models import Course,Cart,Order
+from instructor.models import Course,Cart,Order,Module,Lesson
 from django.db.models import Sum
 
 class StudentCreateView(CreateView):
@@ -42,7 +42,9 @@ class LoginView(FormView):
 class IndexView(View):
     def get(self,request,*args,**kwargs):
         all_courses=Course.objects.all()
-        return render(request,"index.html",{"courses":all_courses})
+        purchased_courses=Order.objects.filter(student=request.user).values_list("course_objects",flat=True)
+        print(purchased_courses)
+        return render(request,"index.html",{"courses":all_courses,"purchased_courses":purchased_courses})
 
 class CourseDetailView(View):
     def get(self,request,*args,**kwargs):
@@ -95,3 +97,22 @@ class MycoursesView(View):
         purchased_courses=request.user.purchase.all()
         print(purchased_courses)
         return render(request,"mycourses.html",{"orders":purchased_courses})
+
+# class CartEmptyView(View):
+#     def get(self,request,*args,**kwargs):
+
+# localhost:8000/student/courses/1/watch?module=2&lesson=5
+
+class LessonDetailView(View):
+    def get(self,request,*args,**kwargs):
+        course_id=kwargs.get("pk")
+        course_instance=Course.objects.get(id=course_id)
+        #request.GET={"module":2,"lesson":5}
+        query_params=request.GET
+        module_id=query_params.get("module") if "module" in query_params else 1
+        lesson_id=query_params.get("lesson") if "lesson" in query_params else 1
+
+        module_instance=Module.objects.get(id=module_id,course_object=course_instance)
+        lesson_instance=Lesson.objects.get(id=lesson_id,module_object=module_instance)
+
+        return render(request,"lesson_detail.html",{"course":course_instance,"lesson":lesson_instance})
