@@ -8,8 +8,7 @@ from instructor.models import Course,Cart,Order,Module,Lesson
 from django.db.models import Sum
 import razorpay
 
-RZP_KEY_ID="rzp_test_0E7XnNeWAb27Eg"
-RZP_KEY_SECRET="kczfioiwjLD0i6iyEuQs4XL6"
+
 
 class StudentCreateView(CreateView):
     template_name="register.html"
