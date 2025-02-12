@@ -6,6 +6,10 @@ from django.urls import reverse_lazy
 from django.contrib import messages
 from instructor.models import Course,Cart,Order,Module,Lesson
 from django.db.models import Sum
+import razorpay
+
+RZP_KEY_ID="rzp_test_0E7XnNeWAb27Eg"
+RZP_KEY_SECRET="kczfioiwjLD0i6iyEuQs4XL6"
 
 class StudentCreateView(CreateView):
     template_name="register.html"
@@ -88,7 +92,12 @@ class OrderCheckoutView(View):
         for ci in cart_items:
             order_instance.course_objects.add(ci.course_object)
             ci.delete()
-        # order_instance.save()
+        order_instance.save()
+        if order_total>0:
+            client = razorpay.Client(auth=(RZP_KEY_ID, RZP_KEY_SECRET))
+            data = { "amount": int(order_total*100), "currency": "INR", "receipt": "order_rcptid_11" }
+            payment = client.order.create(data=data)
+            print(payment)
 
         return redirect("index")
 
@@ -109,10 +118,10 @@ class LessonDetailView(View):
         course_instance=Course.objects.get(id=course_id)
         #request.GET={"module":2,"lesson":5}
         query_params=request.GET
-        module_id=query_params.get("module") if "module" in query_params else 1
-        lesson_id=query_params.get("lesson") if "lesson" in query_params else 1
-
+        module_id=query_params.get("module") if "module" in query_params else course_instance.modules.all().first().id
         module_instance=Module.objects.get(id=module_id,course_object=course_instance)
+
+        lesson_id=query_params.get("lesson") if "lesson" in query_params else module_instance.lessons.all().first().id
         lesson_instance=Lesson.objects.get(id=lesson_id,module_object=module_instance)
 
         return render(request,"lesson_detail.html",{"course":course_instance,"lesson":lesson_instance})
