@@ -8,7 +8,8 @@ from instructor.models import Course,Cart,Order,Module,Lesson
 from django.db.models import Sum
 import razorpay
 
-
+RZP_KEY_ID="rzp_test_0E7XnNeWAb27Eg"
+RZP_KEY_SECRET="kczfioiwjLD0i6iyEuQs4XL6"
 
 class StudentCreateView(CreateView):
     template_name="register.html"
@@ -92,17 +93,27 @@ class OrderCheckoutView(View):
             order_instance.course_objects.add(ci.course_object)
             ci.delete()
         order_instance.save()
+
         if order_total>0:
             client = razorpay.Client(auth=(RZP_KEY_ID, RZP_KEY_SECRET))
             data = { "amount": int(order_total*100), "currency": "INR", "receipt": "order_rcptid_11" }
             payment = client.order.create(data=data)
-            print(payment)
+            rzp_id=payment.get("id")
+            order_instance.rzp_order_id=rzp_id
+            order_instance.save()
+
+            context={ "rzp_key_id":RZP_KEY_ID, "amount":int(order_total*100), "rzp_order_id":rzp_id}
+
+            return render(request,"payment.html",context)
+        elif order_total==0:
+            order_instance.is_paid=True
+            order_instance.save()
 
         return redirect("index")
 
 class MycoursesView(View):
     def get(self,request,*args,**kwargs):
-        purchased_courses=request.user.purchase.all()
+        purchased_courses=request.user.purchase.filter(is_paid=True)
         print(purchased_courses)
         return render(request,"mycourses.html",{"orders":purchased_courses})
 
@@ -124,3 +135,23 @@ class LessonDetailView(View):
         lesson_instance=Lesson.objects.get(id=lesson_id,module_object=module_instance)
 
         return render(request,"lesson_detail.html",{"course":course_instance,"lesson":lesson_instance})
+
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+
+@method_decorator(csrf_exempt,name="dispatch")
+class PaymentVerificationView(View):
+    def post(self,request,*args,**kwargs):
+        print(request.POST,"====================")
+        client = razorpay.Client(auth=(RZP_KEY_ID, RZP_KEY_SECRET))
+        try:
+            client.utility.verify_payment_signature(request.POST)
+            print("Payment Success.........")
+            rzp_order_id=request.POST.get("razorpay_order_id")
+            order_instance=Order.objects.get(rzp_order_id=rzp_order_id)
+            order_instance.is_paid=True
+            order_instance.save()
+            print(request.user)
+        except:
+            print("Failed.......")
+        return redirect("index")
