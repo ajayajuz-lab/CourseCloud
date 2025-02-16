@@ -1,15 +1,17 @@
 from django.shortcuts import render,redirect
 from django.views.generic import View,FormView,CreateView,TemplateView
 from student.forms import StudentCreateForm,StudentSigninForm
-from django.contrib.auth import authenticate,login
+from django.contrib.auth import authenticate,login,logout
 from django.urls import reverse_lazy
 from django.contrib import messages
 from instructor.models import Course,Cart,Order,Module,Lesson
 from django.db.models import Sum
 import razorpay
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+from student.decorators import signin_required
 
-RZP_KEY_ID="rzp_test_0E7XnNeWAb27Eg"
-RZP_KEY_SECRET="kczfioiwjLD0i6iyEuQs4XL6"
+
 
 class StudentCreateView(CreateView):
     template_name="register.html"
@@ -43,6 +45,13 @@ class LoginView(FormView):
         else:
             return render(request,"signin.html",{"form":form_instance})
 
+@method_decorator(signin_required,name="dispatch")
+class LogoutView(View):
+    def get(self,request,*args,**kwargs):
+        logout(request)
+        return redirect("signin")
+
+@method_decorator(signin_required,name="dispatch")
 class IndexView(View):
     def get(self,request,*args,**kwargs):
         all_courses=Course.objects.all()
@@ -50,12 +59,14 @@ class IndexView(View):
         print(purchased_courses)
         return render(request,"index.html",{"courses":all_courses,"purchased_courses":purchased_courses})
 
+@method_decorator(signin_required,name="dispatch")
 class CourseDetailView(View):
     def get(self,request,*args,**kwargs):
         id=kwargs.get("pk")
         course_instance=Course.objects.get(id=id)
         return render(request,"course_detail.html",{"course":course_instance})
 
+@method_decorator(signin_required,name="dispatch")
 class AddToCartView(View):
     def get(self,request,*args,**kwargs):
         id=kwargs.get("pk")
@@ -70,6 +81,7 @@ class AddToCartView(View):
             messages.error(request,"Can't add.Item existing in cart")
         return redirect("index")
 
+@method_decorator(signin_required,name="dispatch")
 class CartSummaryView(View):
     def get(self,request,*args,**kwargs):
         qs=request.user.basket.all()
@@ -77,12 +89,17 @@ class CartSummaryView(View):
         print(cart_total,"**********************************")
         return render(request,"cart-summary.html",{"carts":qs,"basket_total":cart_total})
 
+@method_decorator(signin_required,name="dispatch")
 class CartItemDeleteView(View):
     def get(self,request,*args,**kwargs):
         id=kwargs.get("pk")
+        cart_instance=Cart.objects.get(id=id)
+        if cart_instance.user != request.user:
+            return redirect("index")
         Cart.objects.get(id=id).delete()
         return redirect("cart-summary")
 
+@method_decorator(signin_required,name="dispatch")
 class OrderCheckoutView(View):
     def get(self,request,*args,**kwargs):
         cart_items=request.user.basket.all()
@@ -111,21 +128,22 @@ class OrderCheckoutView(View):
 
         return redirect("index")
 
+@method_decorator(signin_required,name="dispatch")
 class MycoursesView(View):
     def get(self,request,*args,**kwargs):
         purchased_courses=request.user.purchase.filter(is_paid=True)
         print(purchased_courses)
         return render(request,"mycourses.html",{"orders":purchased_courses})
 
-# class CartEmptyView(View):
-#     def get(self,request,*args,**kwargs):
-
-# localhost:8000/student/courses/1/watch?module=2&lesson=5
-
+@method_decorator(signin_required,name="dispatch")
 class LessonDetailView(View):
     def get(self,request,*args,**kwargs):
         course_id=kwargs.get("pk")
         course_instance=Course.objects.get(id=course_id)
+        orders=request.user.purchase.filter(is_paid=True).values_list("course_objects",flat=True)
+
+        if course_instance.id not in orders:
+            return redirect("index")
         #request.GET={"module":2,"lesson":5}
         query_params=request.GET
         module_id=query_params.get("module") if "module" in query_params else course_instance.modules.all().first().id
@@ -136,8 +154,6 @@ class LessonDetailView(View):
 
         return render(request,"lesson_detail.html",{"course":course_instance,"lesson":lesson_instance})
 
-from django.views.decorators.csrf import csrf_exempt
-from django.utils.decorators import method_decorator
 
 @method_decorator(csrf_exempt,name="dispatch")
 class PaymentVerificationView(View):
